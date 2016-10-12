@@ -1,3 +1,4 @@
+require('babel-register');
 const getConfig = require('hjs-webpack');
 const dotenv    = require('dotenv');
 const webpack   = require('webpack');
@@ -12,7 +13,8 @@ const modules = join(root, 'node_modules');
 const dest    = join(root, 'dist');
 
 const NODE_ENV = process.env.NODE_ENV;
-const isDev = NODE_ENV === 'development';
+const isDev    = NODE_ENV === 'development';
+const isTest   = NODE_ENV === 'test';
 // alternatively, we can use process.argv[1]
 // const isDev = (process.argv[1] || '')
 //                .indexOf('hjs-dev-server') !== -1;
@@ -43,6 +45,25 @@ const config = getConfig({
   out: dest,
   clearBeforeBuild: true
 });
+
+if (isTest) {
+  config.externals = {
+    'react/lib/ReactContext': true,
+    'react/lib/ExecutionEnvironment': true
+  };
+
+  config.plugins = config.plugins.filter(p => {
+    const name   = p.constructor.toString();
+    const fnName = name.match(/^function (.*)\((.*\))/);
+
+    const idx = [
+      'DedupePlugin',
+      'UglifyJsPlugin'
+    ].indexOf(fnName[1]);
+    return idx < 0;
+  })
+}
+
 
 config.plugins = [
   new webpack.DefinePlugin(defines)
@@ -84,5 +105,14 @@ config.module.loaders.push({
   include: [modules],
   loader: 'style!css'
 });
+
+config.resolve.root = [src, modules];
+config.resolve.alias = {
+  'css': join(src, 'styles'),
+  'containers': join(src, 'containers'),
+  'components': join(src, 'components'),
+  'utils': join(src, 'utils')
+
+};
 
 module.exports = config;
